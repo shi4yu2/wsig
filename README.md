@@ -1,5 +1,4 @@
 # wsig - Read and Write RIFF files
-____
 
 The wsig module provides a convenient interface to the riff format for physiology measures. 
 
@@ -15,7 +14,7 @@ A *mode* of 'rb' returns a Wave_read object, while a *mode* of 'wb' returns a Wa
 
 If you pass in a file-like object, the wave object will not close it when its close() method is called; it is the caller’s responsibility to close the file object.
 
-The `open()` function may be used in a with statement. When the with block completes, the `Wsig_read.close()` or `Wsig_write.close() method is called.
+The `open()` function may be used in a with statement. When the with block completes, the `Wsig_read.close()` or `Wsig_write.close()` method is called.
 
 ```python
 exception wsig.Error
@@ -29,6 +28,7 @@ Plot the calibrated signal . (`matplotlib` package required)
 
 ### List of parameters for calibration
 * `Wsig_read._czero` (calibration_at_zero)
+* `Wsig_read._cmax` (calibration_at_max)
 * `Wsig_read._signaldynamic` (= calibration_at_max - calibration_at_zero)
 * `Wsig_read._valueatmax` (integer_part_of_the_value_at_max + floating_part_x_10^6_of_the_max / 1000000.0)
 
