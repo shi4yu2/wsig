@@ -1,30 +1,30 @@
 # wsig - Read and Write RIFF files
 
-The wsig module provides a convenient interface to the riff format for physiology measures. 
+The wsig module provides a convenient interface to the riff format of physiology measures. 
 
 The wsig module defines the following function and exception:
 ```python
 wsig.open(file, mode=None)
 ```
-If file is a string, open the file by that name, otherwise treat it as a file-like object. mode can be:
-* `'rb'`: Read only mode.
-* `'wb'`: Write only mode.
-
-A *mode* of 'rb' returns a Wave_read object, while a *mode* of 'wb' returns a Wave_write object. If mode is omitted and a file-like object is passed as file, file.mode is used as the default value for mode.
-
-If you pass in a file-like object, the wave object will not close it when its close() method is called; it is the caller’s responsibility to close the file object.
-
-The `open()` function may be used in a with statement. When the with block completes, the `Wsig_read.close()` or `Wsig_write.close()` method is called.
+> If file is a string, open the file by that name, otherwise treat it as a file-like object. mode can be:
+> * `'rb'`: Read only mode.
+> * `'wb'`: Write only mode.
+> 
+> A *mode* of 'rb' returns a Wsig_read object, while a *mode* of 'wb' returns a Wisg_write object. If mode is omitted and a file-like object is passed as file, file.mode is used as the default value for mode.
+>
+> If you pass in a file-like object, the wsig object will not close it when its close() method is called; it is the caller’s responsibility to close the file object.
+> 
+> The `open()` function may be used in a with statement. When the with block completes, the `Wsig_read.close()` or `Wsig_write.close()` method is called.
 
 ```python
 exception wsig.Error
 ```
-An error raised when something is impossible because it violates the RIFF specification or hits an implementation deficiency.
+> An error raised when something is impossible because it violates the RIFF specification or hits an implementation deficiency.
 
 ## Wsig_plot
 * Wsig_read.**plot()**
 
-Plot the calibrated signal . (`matplotlib` package required)
+Plot the calibrated signal. (`matplotlib` package required)
 
 ### List of parameters for calibration
 * `Wsig_read._czero` (calibration_at_zero)
