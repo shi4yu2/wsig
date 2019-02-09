@@ -1,4 +1,4 @@
-# WSIG Handler and use 
+# WSIG Handler and Use 
 ## Overview
 This repo provides wsig module for a convenient interface to the riff format of physiology measures. 
 
@@ -29,7 +29,8 @@ The following Python packages are required to run this software:
 
 
 # wsig - Read and Write RIFF files
-This module provides a way similar to native wave module to handle RIFF files
+This module provides a way similar to native WAVE module to handle RIFF files.
+
 The wsig module defines the following function and exception:
 ```python
 wsig.read(file, mode=None)
