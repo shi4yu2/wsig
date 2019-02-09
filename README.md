@@ -52,7 +52,7 @@ exception wsig.Error
 ### List of parameters for calibration
 * `Wsig_read.getzero()` (calibration_at_zero)
 * `Wsig_read.getsignaldynamic()` (= calibration_at_max - calibration_at_zero)
-* `Wsig_read.valueatmax()` (integer_part_of_the_value_at_max + floating_part_x_10^6_of_the_max / 1000000.0)
+* `Wsig_read.valueatmax()` (integer_part_of_the_value_at_max + floating_part_*_10^6_of_the_max / 1000000.0)
 
 **Calibration algorithm**
 ```
@@ -61,6 +61,7 @@ double val_calib = (double)(valint16 - czero) * (m_fValueAtMax / m_fSignalDynami
 
 **Calibration in python**
 ```python
+import numpy as np
 signal = np.frombuffer(wsig.read(file).readframes(-1), np.int16)
 calibratedSignal = (signal - wave.getzero()) * (wave.getvalueatmax() / wave.getsignaldynamic())
 ```
