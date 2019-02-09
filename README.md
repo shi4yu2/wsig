@@ -16,10 +16,10 @@ The following scripts demonstrate basic usage of this module.
   * plot one signal in an interactive html page
   * ![alt text](https://raw.githubusercontent.com/shi4yu2/wsig/master/img/simpleplot.png)
 * `plot_multi.py`
-  * plot simultaneous recording in an interactive html page 
+  * plot simultaneous recordings in an interactive html page 
   * ![alt text](https://raw.githubusercontent.com/shi4yu2/wsig/master/img/multiplot.png)
   
-File samples are provided in "example" folder.  
+Sample files are provided in "example" folder.  
 
 ## Dependencies
 The following Python packages are required to run this software:
