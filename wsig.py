@@ -1,20 +1,31 @@
-"""Parse SESANE RIFF file
+__author__ = 'ShY'
+__copyright__ = 'Copyright 2019, SHY'
+__version__ = '1.0.0 (20190209)'
+__maintainer__ = 'ShY'
+__email__ = 'shi4yu2@gmail.com'
+__status__ = 'Pre-release'
+
+"""Parse SESANE RIFF / WAVE file (and
 * RIFF format used by Alain Ghio: http://www.lpl-aix.fr/~ghio/
 * Format description: http://www.lpl-aix.fr/~ghio/Doc/TN-FormatFichierSESANE_EVA_Wsig.pdf
 
 Usage:
 
-Reading SESANE files (WISG Type)
-    f = wisg.open(file, 'r')
+Reading SESANE files (Wsig Type RIFF format) or WAVE files
+    f = wsig.open(file, 'r')
 where file is either the name of a file or an open file pointer.
 The open file pointer must have methods read(), seek(), and close().
 When the setpos() and rewind() methods are not used, the seek() methods is not necessary.
 
 This returns an instance of a class with the following public methods:
       # Added methods for WSIG
-      getduration()   -- return the duration of audio
-      plot()          -- plot signal
-
+      getduration()       -- returns duration of signal
+      getparaname()       -- returns type of measure
+      getunit()           -- returns unit of measure 
+      getsignaldynamic()  -- returns signal dynamic (for calibration)
+      getvalueatmax()     -- returns max value (for calibration)
+      getzero()           -- returns calibration at zero (for calibration)
+    
       # Original methods for WAVE
       getnchannels()  -- returns number of audio channels (1 for
                          mono, 2 for stereo)
@@ -40,31 +51,21 @@ are compatible and have nothing to do with the actual position in the
 file.
 The close() method is called automatically when the class instance
 is destroyed.
-
-# ========================================================================================
-Writing WAVE files:
-     f = wisg.open(file, 'w')
-     To be done
 """
 
-__author__ = 'ShY'
-__copyright__ = 'Copyright 2018, SHY'
-__version__ = '0.1.0 (20181208)'
-__maintainer__ = 'ShY'
-__email__ = 'shi4yu2@gmail.com'
-__status__ = 'Development'
-
-# Todo : WriteRiff
-# Todo : Documentation
-
 import builtins
-__all__ = ["open", "Error", "WsigRead", "WsigWrite"]
+
+__all__ = ["read", "towave", "Error", "WsigRead"]
 
 
 class Error(Exception):
     pass
 
+
 WAVE_FORMAT_PCM = 0x0001
+WAVE_FORMAT_IEEE_FLOAT = 0x0003
+WAVE_FORMAT_EXTENSIBLE = 0xfffe
+KNOWN_WAVE_FORMATS = (WAVE_FORMAT_PCM, WAVE_FORMAT_IEEE_FLOAT)
 
 _array_fmts = None, 'b', 'h', None, 'i'
 
@@ -74,12 +75,13 @@ import sys
 from chunk import Chunk
 from struct import *
 from collections import namedtuple
-import numpy as np
-import matplotlib.pyplot as plt
 import warnings
 
 _wave_params = namedtuple('_wave_params',
-                     'nchannels sampwidth framerate nframes comptype compname duration')
+                          'nchannels sampwidth framerate '
+                          'nframes comptype compname '
+                          'duration paraname unit signaldynamic valueatmax zero')
+
 
 ##############################################################################################
 
@@ -137,7 +139,7 @@ class WsigRead:
         if self._file.getname() != b'RIFF':
             raise Error('File does not start with RIFF id')
         self._filetype = self._file.read(4)
-        if not(self._filetype == b'WSIG' or self._filetype == b'WAVE'):
+        if not (self._filetype == b'WSIG' or self._filetype == b'WAVE'):
             raise Error('not a SESANE or WAVE file')
 
         # Initialise chunk fetching
@@ -198,7 +200,7 @@ class WsigRead:
                 raise Error('fmt chunk and/or data chunk missing')
         elif self._filetype == b'WSIG':
             if not self._sdsc_chunk_read or \
-                    not self._adsc_chunk_read or\
+                    not self._adsc_chunk_read or \
                     not self._data_chunk:
                 raise Error('sd/adsc chunk and/or data chunk missing')
 
@@ -264,11 +266,28 @@ class WsigRead:
     def getcompname(self):
         return self._compname
 
+    def getparaname(self):
+        return self._paraname
+
+    def getunit(self):
+        return self._unitname
+
+    def getsignaldynamic(self):
+        return self._signaldynamic
+
+    def getvalueatmax(self):
+        return self._valueatmax
+
+    def getzero(self):
+        return self._czero
+
     def getparams(self):
         return _wave_params(self.getnchannels(), self.getsampwith(),
-                            self.getframerate(), self.getframes(),
+                            self.getframerate(), self.getnframes(),
                             self.getcomptype(), self.getcompname(),
-                            self.getduration())
+                            self.getduration(), self.getparaname(),
+                            self.getunit(), self.getsignaldynamic(),
+                            self.getvalueatmax(), self.getzero())
 
     def getmarkers(self):
         return None
@@ -288,7 +307,7 @@ class WsigRead:
 
     def readframes(self, nframes):
         if self._data_seek_needed:
-            self._data_chunk.seek(0,0)
+            self._data_chunk.seek(0, 0)
             pos = self._soundpos * self._framesize
             if pos:
                 self._data_chunk.seek(pos, 0)
@@ -303,42 +322,14 @@ class WsigRead:
         self._soundpos = self._soundpos + len(data) // (self._nchannels * self._sampwidth)
         return data
 
-    def plot(self):
-        if self.getnchannels() == 2:
-            print('Only mono files')
-            sys.exit(0)
-
-        fig = plt.figure()
-        ax = fig.add_subplot(111)
-
-        signal = self.readframes(-1)
-        if self._filetype == b'WAVE':
-            signal = np.frombuffer(signal, np.int16)
-            ax.set_ylabel('Amplitude')
-            plt.title('Audio')
-
-        elif self._filetype == b'WSIG':
-            # Calibration
-            signal = (np.frombuffer(signal, np.int16) - self._czero)
-            signal = signal * self._valueatmax / self._signaldynamic
-            ax.set_ylabel(self._unitname)
-            plt.title(self._paraname)
-
-        # Duration
-        length = len(signal)
-        framerate = self.getframerate()
-        time_axis = np.linspace(0, length / framerate, num=length)
-        ax.set_xlabel('time')
-
-        plt.plot(time_axis, signal)
-        plt.show()
-
     # ==============================================================
     # Internal methods
     # ==============================================================
     def _read_fmt_chunk(self, chunk):
         try:
-            wFormatTag, self._nchannels, self._framerate, dwAvgBytesPerSec, wBlockAlign = struct.unpack_from('<HHLLH', chunk.read(14))
+            wFormatTag, self._nchannels, self._framerate, dwAvgBytesPerSec, wBlockAlign = struct.unpack_from('<HHLLH',
+                                                                                                             chunk.read(
+                                                                                                                 14))
         except struct.error:
             raise EOFError from None
         if wFormatTag == WAVE_FORMAT_PCM:
@@ -374,23 +365,23 @@ class WsigRead:
         """
         try:
             (s_size, acronym, paraname,
-            unitname, snsamples, self._framerate,
-            self._s_max, self._s_min, cmax, self._czero,
-            imax, fmax) = unpack(
-                                            '<L'  # s_size 4
-                                            'L'  # acronym 4
-                                            '80s'  # paraname 80
-                                            '16s'  # unitname 16
-                                            'L'  # snsamples 4
-                                            'L'  # _framerate 4 (Freq)
-                                            'h'  # s_max 2
-                                            'h'  # s_min 2
-                                            'h'  # cmax 2
-                                            'h'  # _czero 2
-                                            'i'  # imax 4
-                                            'L',  # fmax 8
-                                            chunk.read(128)
-                                            )
+             unitname, snsamples, self._framerate,
+             self._s_max, self._s_min, cmax, self._czero,
+             imax, fmax) = unpack(
+                '<L'  # s_size 4
+                'L'  # acronym 4
+                '80s'  # paraname 80
+                '16s'  # unitname 16
+                'L'  # snsamples 4
+                'L'  # _framerate 4 (Freq)
+                'h'  # s_max 2
+                'h'  # s_min 2
+                'h'  # cmax 2
+                'h'  # _czero 2
+                'i'  # imax 4
+                'L',  # fmax 8
+                chunk.read(128)
+            )
         except struct.error:
             raise EOFError from None
 
@@ -419,18 +410,18 @@ class WsigRead:
             (a_size, self._nchannels, ansamples, acquifreq,
              sampwidth, highest, lowest, zero,
              reccode, recver) = unpack(
-                                    '<L'  # a_size 4
-                                    'H'  # _nchannels 2 (nch)
-                                    'L'  # ansamples 4
-                                    'L'  # acquifreq 4
-                                    'H'  # sampwidth 2  (bps)
-                                    'i'  # highest 4
-                                    'i'  # lowest 4
-                                    'i'  # zero 4
-                                    'H'  # reccode 2
-                                    'H',  # recver 2
-                                    chunk.read(32)
-                                    )
+                '<L'  # a_size 4
+                'H'  # _nchannels 2 (nch)
+                'L'  # ansamples 4
+                'L'  # acquifreq 4
+                'H'  # sampwidth 2  (bps)
+                'i'  # highest 4
+                'i'  # lowest 4
+                'i'  # zero 4
+                'H'  # reccode 2
+                'H',  # recver 2
+                chunk.read(32)
+            )
         except struct.error:
             raise EOFError from None
         self._sampwidth = (sampwidth + 7) // 8
@@ -450,84 +441,8 @@ class WsigRead:
         MetaInfo = MetaInfo.split('   ')
         self._metaInfo = MetaInfo
 
-class WsigWrite:
-    """Variables used in this class:
 
-    These variables are user settable through appropriate methods
-    of this class:
-    _file -- the open file with methods write(), close(), tell(), seek()
-              set through the __init__() method
-    _comptype -- the AIFF-C compression type ('NONE' in AIFF)
-              set through the setcomptype() or setparams() method
-    _compname -- the human-readable AIFF-C compression type
-              set through the setcomptype() or setparams() method
-    _nchannels -- the number of audio channels
-              set through the setnchannels() or setparams() method
-    _sampwidth -- the number of bytes per audio sample
-              set through the setsampwidth() or setparams() method
-    _framerate -- the sampling frequency
-              set through the setframerate() or setparams() method
-    _nframes -- the number of audio frames written to the header
-              set through the setnframes() or setparams() method
-
-    These variables are used internally only:
-    _datalength -- the size of the audio samples written to the header
-    _nframeswritten -- the number of frames actually written
-    _datawritten -- the size of the audio samples actually written
-    """
-
-    def __init__(self, f):
-        self._i_opened_the_file = None
-        if isinstance(f, str):
-            f = builtins.open(f, 'wb')
-            self._i_opened_the_file = f
-        try:
-            self.initfp(f)
-        except:
-            if self._i_opened_the_file:
-                f.close()
-            raise
-
-    def initfp(self, file):
-        self._file = file
-        self._convert = None
-        self._nChannels = 0
-        self._sampwidth = 0
-        self._framerate = 0
-        self._nframes = 0
-        self._nframeswritten = 0
-        self._datawritten = 0
-        self._datalength = 0
-        self._headerwritten = False
-
-    def __del__(self):
-        self.close()
-
-    def __enter__(self):
-        return self
-
-    def __exit__(self, *args):
-        self.close()
-
-    #
-    # User visible methods
-    #
-    def close(self):
-        try:
-            if self._file:
-                self._ensure_header_written(0)
-                if self._datalength != self._datawritten:
-                    self._patchheader()
-                self._file.flush()
-        finally:
-            self._file = None
-            file = self._i_opened_the_file
-            if file:
-                self._i_opened_the_file = None
-                file.close()
-
-
-def open(f, mode=None):
+def read(f, mode=None):
     if mode is None:
         if hasattr(f, 'mode'):
             mode = f.mode
@@ -535,8 +450,71 @@ def open(f, mode=None):
             mode = 'rb'
     if mode in ('r', 'rb'):
         return WsigRead(f)
-    elif mode in ('w', 'wb'):
-        return WsigWrite(f)
     else:
-        raise Error("mode must be 'r', 'rb', 'w', or 'wb'")
+        raise Error("mode must be 'r', or, 'rb'")
 
+
+def towave(filename, rate, data):
+    """
+    Write a numpy array as a WAV file
+    Parameters
+    ----------
+    filename : string or open file handle
+        Output wav file
+    rate : int
+        The sample rate (in samples/sec).
+    data : ndarray
+        A 1-D or 2-D numpy array of either integer or float data-type.
+    Notes
+    -----
+    * The file can be an open file or a filename.
+    * Writes a simple uncompressed WAV file.
+    * The bits-per-sample will be determined by the data-type.
+    * To write multiple-channels, use a 2-D array of shape
+      (Nsamples, Nchannels).
+    """
+    if hasattr(filename, 'write'):
+        fid = filename
+    else:
+        fid = open(filename, 'wb')
+
+    try:
+        dkind = data.dtype.kind
+        if not (dkind == 'i' or dkind == 'f' or (dkind == 'u' and data.dtype.itemsize == 1)):
+            raise ValueError("Unsupported data type '%s'" % data.dtype)
+
+        fid.write(b'RIFF')
+        fid.write(b'\x00\x00\x00\x00')
+        fid.write(b'WAVE')
+        # fmt chunk
+        fid.write(b'fmt ')
+        if dkind == 'f':
+            comp = 3
+        else:
+            comp = 1
+        if data.ndim == 1:
+            noc = 1
+        else:
+            noc = data.shape[1]
+        bits = data.dtype.itemsize * 8
+        sbytes = rate * (bits // 8) * noc
+        ba = noc * (bits // 8)
+        fid.write(struct.pack('<ihHIIHH', 16, comp, noc, rate, sbytes, ba, bits))
+        # data chunk
+        fid.write(b'data')
+        fid.write(struct.pack('<i', data.nbytes))
+        if data.dtype.byteorder == '>' or (data.dtype.byteorder == '=' and sys.byteorder == 'big'):
+            data = data.byteswap()
+        fid.write(data.ravel().view('b').data)
+
+        # Determine file size and place it in correct
+        # position at start of the file.
+        size = fid.tell()
+        fid.seek(4)
+        fid.write(struct.pack('<i', size - 8))
+
+    finally:
+        if not hasattr(filename, 'write'):
+            fid.close()
+        else:
+            fid.seek(0)
