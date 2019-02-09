@@ -11,6 +11,7 @@ The following scripts demonstrate basic usage of this module.
 * `conversion.py`
   * Usage: `python conversion.py -i input_dir -o output_dir`
   * Conversion for multiple files contained in a directory
+  * **Plase note that converted .wav is not calibrated** 
 * `plot_simple.py`
   * plot one signal in an interactive html page
   * ![alt text](https://raw.githubusercontent.com/shi4yu2/wsig/master/img/simpleplot.png)
@@ -136,4 +137,5 @@ import wsig
 wsig.towave(filename, rate, date)
 ```
 Write a numpy array as a WAV file
-Example of use is provided in `basic_usage.py`
+
+Example of use is provided in `basic_usage.py` (Please note that converted .wav is not calibrated)
