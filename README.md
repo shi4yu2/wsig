@@ -1,4 +1,4 @@
-# wsig Handler and use 
+# WSIG Handler and use 
 ## Overview
 This repo provides wsig module for a convenient interface to the riff format of physiology measures. 
 
