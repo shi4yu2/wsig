@@ -42,7 +42,7 @@ wsig.read(file, mode=None)
 >
 > If you pass in a file-like object, the wsig object will not close it when its close() method is called; it is the caller’s responsibility to close the file object.
 > 
-> The `open()` function may be used in a with statement. When the with block completes, the `Wsig_read.close()` or `Wsig_write.close()` method is called.
+> The `read()` function may be used in a with statement. When the with block completes, the `Wsig_read.close()` method is called.
 
 ```python
 exception wsig.Error
