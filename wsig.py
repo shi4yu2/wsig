@@ -1,11 +1,11 @@
 __author__ = 'ShY'
 __copyright__ = 'Copyright 2019, SHY'
-__version__ = '1.0.0 (20190209)'
+__version__ = '1.1.0 (20190304)'
 __maintainer__ = 'ShY'
 __email__ = 'shi4yu2@gmail.com'
 __status__ = 'Pre-release'
 
-"""Parse SESANE RIFF / WAVE file (and
+"""Parse SESANE RIFF / WAVE file 
 * RIFF format used by Alain Ghio: http://www.lpl-aix.fr/~ghio/
 * Format description: http://www.lpl-aix.fr/~ghio/Doc/TN-FormatFichierSESANE_EVA_Wsig.pdf
 
@@ -149,8 +149,11 @@ class WsigRead:
         self._list_chunk_read = 0
         self._info_chunk_read = 0
         self._data_chunk = None
+        self._data_seek_needed = 1
 
         while 1:
+            # if self._data_seek_needed == 0:
+            #     break
             self._data_seek_needed = 1
             try:
                 chunk = Chunk(self._file, bigendian=0)
@@ -186,23 +189,36 @@ class WsigRead:
                 elif chunkname == b'LIST':
                     self._read_list_chunk(chunk)
                     self._list_chunk_read = 1
-                    break
                 elif chunkname == b'data':
-                    if not (self._sdsc_chunk_read and self._adsc_chunk_read):
-                        raise Error('data chunk before sd/adsc chunk')
+                    if not (self._sdsc_chunk_read):
+                        raise Error('data chunk before sdsc chunk')
                     # EVA2 version
                     self._data_chunk = chunk
-                    self._nframes = chunk.chunksize // self._framesize
+                    if self._adsc_chunk_read == 0:
+                        # We make assumption about sampwidth here
+                        sampwidth = 16
+                        self._nchannels = 1
+                        self._sampwidth = (sampwidth + 7) // 8
+                        self._framesize = self._nchannels * self._sampwidth
+                        self._nframes = chunk.chunksize // self._framesize
+                        self._comptype = 'NONE'
+                        self._compname = 'not compressed'
+                        self._adsc_chunk_read = 1
+                    else:
+                        self._nframes = chunk.chunksize // self._framesize
                     self._data_seek_needed = 0
+                    break
                 chunk.skip()
         if self._filetype == b'WAVE':
             if not self._fmt_chunk_read or not self._data_chunk:
                 raise Error('fmt chunk and/or data chunk missing')
         elif self._filetype == b'WSIG':
-            if not self._sdsc_chunk_read or \
-                    not self._adsc_chunk_read or \
-                    not self._data_chunk:
-                raise Error('sd/adsc chunk and/or data chunk missing')
+            if not self._sdsc_chunk_read:
+                raise Error('sdsc chunk missing')
+            elif not self._adsc_chunk_read:
+                raise Error('adsc chunk missing')
+            elif not self._data_chunk:
+                raise Error('data chunk missing')
 
     def __init__(self, f):
         self._i_opened_the_file = None
